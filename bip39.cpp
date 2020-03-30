@@ -1,30 +1,30 @@
 #include "bip39.h"
-#include <avr/pgmspace.h>
+// #include <avr/pgmspace.h>
 #include <Arduino.h>
 
-Sha256 sha256;
+Sha256Class sha256;
 
 struct Bip39IndexChar {
     uint16_t i;
     char c;
 };
 
-const Bip39IndexChar bip39_prefix1[] PROGMEM = {
+const Bip39IndexChar bip39_prefix1[] = {
 #include "prefix1.inc"
 };
 
-const Bip39IndexChar bip39_prefix2[] PROGMEM = {
+const Bip39IndexChar bip39_prefix2[] = {
 #include "prefix2.inc"
 };
 
 #include "suffix_strings.inc"
 
-const char* const bip39_suffix[] PROGMEM = {
+const char* const bip39_suffix[] = {
 #include "suffix_array.inc"
 };
 
 char 
-bip39_lookup(Bip39IndexChar *table, uint8_t length, uint16_t n) {
+bip39_lookup(Bip39IndexChar const *table, uint8_t length, uint16_t n) {
   uint8_t lo = 0;
   uint8_t hi = length;
   uint8_t mid;
@@ -32,7 +32,7 @@ bip39_lookup(Bip39IndexChar *table, uint8_t length, uint16_t n) {
 
   while(lo+1 < hi) {
     mid = (lo + hi) /2;
-    memcpy_P(&m, &(table[mid]), sizeof (Bip39IndexChar));
+    memcpy(&m, &(table[mid]), sizeof (Bip39IndexChar));
     if(m.i < n) {
         lo = mid;
     } else if (m.i> n) {
@@ -42,7 +42,7 @@ bip39_lookup(Bip39IndexChar *table, uint8_t length, uint16_t n) {
         break;
     }
   } 
-  memcpy_P (&m, &table[lo], sizeof (Bip39IndexChar));
+  memcpy (&m, &table[lo], sizeof (Bip39IndexChar));
   return m.c;
 }
 
@@ -51,7 +51,8 @@ Bip39::loadMnemonic(uint16_t i, char *b)
 {
   b[0] = bip39_lookup(bip39_prefix1, PREFIX_1_LEN, i);    
   b[1] = bip39_lookup(bip39_prefix2, PREFIX_2_LEN, i);    
-  strcpy_P(b + 2, (char*)pgm_read_word(&(bip39_suffix[i]))); // Necessary casts and dereferencing, just copy.
+  strcpy(b + 2, bip39_suffix[i]);
+  // strcpy(b + 2, (char*)pgm_read_word(&(bip39_suffix[i]))); // Necessary casts and dereferencing, just copy.
 }
 
 const char *
@@ -102,7 +103,7 @@ Bip39::setPayloadWords(uint8_t words) {
 #define MIN_CHECKSUM_BITS 1
 
 uint8_t *
-Bip39::computeChecksum() {
+Bip39::computeChecksum() const {
   sha256.init();
   for(uint8_t i=0; i< payloadBytes; i++) {
     sha256.write(buffer[i]);
@@ -185,7 +186,7 @@ Bip39::setWord(uint8_t n, uint16_t w) {
   w = w & 0x7FF;
   
   if(j >= BIP39_BUF_MAX) {
-    return 0xFFFF;
+    return;
   }
 
   // This might be a partial byte,
@@ -206,5 +207,11 @@ Bip39::setWord(uint8_t n, uint16_t w) {
   }
 }
 
-
-
+void
+Bip39::setPayload(uint8_t length, uint8_t *bytes) {
+  if (length <= BIP39_BUF_MAX) {
+    clear();
+    memcpy(buffer, bytes, length);
+    appendChecksum();
+  }
+}
