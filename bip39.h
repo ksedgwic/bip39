@@ -27,7 +27,7 @@ class Bip39 {
   uint8_t payloadWords = 24;
 
   uint8_t buffer[BIP39_BUF_MAX];
-  uint8_t *computeChecksum();
+  uint8_t *computeChecksum() const;
 
   uint8_t currentWord;
   void loadMnemonic(uint16_t i, char *b);
